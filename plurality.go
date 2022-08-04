@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -75,4 +76,35 @@ func pluralitySimulatorSingle(candSlice []Coordinate) []int64 {
 		countSlice[curWinner] += 1
 	}
 	return countSlice
+}
+
+func pluralitySimulatorConcurrentSharedCounters(candSlice []Coordinate, popLength int, candLength int) *[]*Counter {
+	defer timer()()
+
+	countSlice := make([]*Counter, candLength)
+	var wg sync.WaitGroup
+	for i := range countSlice {
+		countSlice[i] = NewCounter()
+	}
+	for i := 0; i < popLength; i += 1 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			indiv := Coordinate{rand.Float64(), rand.Float64()}
+			var curWinner int = 0
+			var curMinDist float64 = math.MaxFloat64
+			for j := 0; j < candLength; j += 1 {
+				candDist := distance(indiv, (candSlice)[j])
+				// fmt.Printf("candDist%d is %f\n", j, candDist)
+				if candDist < curMinDist {
+					curWinner = j
+					curMinDist = candDist
+				}
+			}
+			// fmt.Printf("curWinner is %d\n", curWinner)
+			(*countSlice[curWinner]).Inc()
+		}()
+	}
+	wg.Wait()
+	return &countSlice
 }
